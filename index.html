@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   />
-  <title>Wind & Motion Playground - Installation Build</title>
+  <title>BxCM Wind Lab - Move the Weather</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,12 +15,16 @@
 
   <div id="startupOverlay" class="overlay visible">
     <div class="overlay-card">
-      <h1>Wind & Motion Playground</h1>
-      <p class="subtitle">Move your body to shape wind, motion, and particles.</p>
+      <div class="brand-kicker">Bronx Children’s Museum</div>
+      <h1>BxCM Wind Lab</h1>
+      <p class="subtitle">Move the Weather</p>
+      <p class="intro-copy">
+        Use your body to explore breeze, gusts, storms, and motion.
+      </p>
 
       <div class="startup-controls">
         <div class="startup-row">
-          <label for="cameraSelect">Camera</label>
+          <label for="cameraSelect">Camera Source</label>
           <select id="cameraSelect">
             <option value="">Loading cameras...</option>
           </select>
@@ -32,21 +36,23 @@
           <label><input type="checkbox" id="hideUiToggle" checked /> Hide Operator UI</label>
         </div>
 
-        <button id="startExperienceBtn">Start Experience</button>
+        <button id="startExperienceBtn">Start Wind Lab</button>
       </div>
     </div>
   </div>
 
   <div id="attractOverlay" class="attract-overlay hidden">
     <div class="attract-inner">
-      <h2>Step into the wind.</h2>
-      <p>Wave your arms to move the particles.</p>
+      <div class="attract-kicker">BxCM Wind Lab</div>
+      <h2>Step into the weather.</h2>
+      <p>Wave your arms to make breeze, wind, and storms.</p>
     </div>
   </div>
 
   <div id="ui">
     <div class="panel">
-      <h1>Wind & Motion Playground</h1>
+      <div class="panel-brand">BxCM Wind Lab</div>
+      <h1>Move the Weather</h1>
 
       <div class="status-wrap">
         <div class="status-dot" id="statusDot"></div>
@@ -56,19 +62,19 @@
       <div class="row">
         <label for="themeSelect">Theme</label>
         <select id="themeSelect">
-          <option value="leaves">Leaves</option>
-          <option value="fireflies">Fireflies</option>
-          <option value="dust">Baseball Dust</option>
-          <option value="confetti">Confetti</option>
+          <option value="leaves">Bronx Breeze</option>
+          <option value="fireflies">Night Glow</option>
+          <option value="dust">Ballfield Wind</option>
+          <option value="confetti">Celebration Sky</option>
         </select>
       </div>
 
       <div class="row">
-        <label for="modeSelect">Learning</label>
+        <label for="modeSelect">Lesson Mode</label>
         <select id="modeSelect">
           <option value="freeplay">Free Play</option>
           <option value="weather">Move the Weather</option>
-          <option value="teamwork">Teamwork Challenges</option>
+          <option value="teamwork">Team Challenge</option>
         </select>
       </div>
 
@@ -116,13 +122,13 @@
       </div>
 
       <div class="prompt-box">
-        <div class="prompt-label">Class Prompt</div>
-        <div class="prompt-text" id="promptText">Move your arms slowly and see what changes.</div>
+        <div class="prompt-label">Teaching Prompt</div>
+        <div class="prompt-text" id="promptText">Can you make a tiny breeze with your arms?</div>
       </div>
 
       <div class="instructions">
-        <p><strong>Body play:</strong> wave, sweep, reach, swirl.</p>
-        <p><strong>Learning:</strong> force, speed, direction, teamwork.</p>
+        <p><strong>Explore:</strong> breeze, gust, storm, swirl</p>
+        <p><strong>Learn:</strong> force, speed, direction, teamwork</p>
       </div>
     </div>
   </div>
