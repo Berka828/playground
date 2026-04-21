@@ -242,6 +242,14 @@ body {
   margin-bottom: 10px;
 }
 
+.kid-ready-text {
+  margin-top: 14px;
+  font-size: clamp(16px, 2vw, 24px);
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--bx-magenta);
+}
+
 .kid-coach-text {
   font-size: clamp(18px, 2vw, 28px);
   line-height: 1.2;
