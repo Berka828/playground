@@ -336,7 +336,20 @@ body {
     width: 295px;
     padding: 14px;
   }
+.step-box {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.08);
+}
 
+.step-text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.98);
+}
+  
   .row {
     grid-template-columns: 84px 1fr;
   }
