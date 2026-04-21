@@ -4,6 +4,11 @@ const ctx = canvas.getContext("2d");
 
 const startupOverlay = document.getElementById("startupOverlay");
 const attractOverlay = document.getElementById("attractOverlay");
+const kidPromptOverlay = document.getElementById("kidPromptOverlay");
+const kidStepText = document.getElementById("kidStepText");
+const kidPromptText = document.getElementById("kidPromptText");
+const kidCoachText = document.getElementById("kidCoachText");
+
 const cameraSelect = document.getElementById("cameraSelect");
 const cameraSelectInline = document.getElementById("cameraSelectInline");
 const startExperienceBtn = document.getElementById("startExperienceBtn");
@@ -36,8 +41,6 @@ let currentStream = null;
 let currentDeviceId = "";
 let lastSeenBodyTime = 0;
 let lastSpokenTime = 0;
-let lastCoachUpdate = 0;
-let frameCount = 0;
 
 const config = {
   mirror: true,
@@ -95,40 +98,47 @@ const garden = {
 const sequence = {
   step: 0,
   completed: false,
+  waitingForNextStep: false,
+  waitTimer: 0,
   steps: [
     {
       key: "plant",
-      label: "Step 1 of 5: Plant the seed",
-      prompt: "Can you crouch down and plant a seed?",
-      simplified: "Bend down low.",
+      label: "Step 1 of 5",
+      prompt: "Crouch down and plant a seed",
+      operatorPrompt: "Can you crouch down and plant a seed?",
+      simplified: "Bend down low",
       celebration: "You planted the seed!"
     },
     {
       key: "grow",
-      label: "Step 2 of 5: Grow the flower",
-      prompt: "Can you stand tall and help the flower grow?",
-      simplified: "Stand up big and tall.",
+      label: "Step 2 of 5",
+      prompt: "Stand tall and grow the flower",
+      operatorPrompt: "Can you stand tall and help the flower grow?",
+      simplified: "Stand up big and tall",
       celebration: "Your flower is growing!"
     },
     {
       key: "sun",
-      label: "Step 3 of 5: Wake the sun",
-      prompt: "Can you raise both hands to wake the sun?",
-      simplified: "Put both hands up high.",
+      label: "Step 3 of 5",
+      prompt: "Raise both hands to wake the sun",
+      operatorPrompt: "Can you raise both hands to wake the sun?",
+      simplified: "Put both hands up high",
       celebration: "You woke the sun!"
     },
     {
       key: "rain",
-      label: "Step 4 of 5: Make the rain",
-      prompt: "Can you sway side to side to make a little rain?",
-      simplified: "Move side to side.",
+      label: "Step 4 of 5",
+      prompt: "Sway side to side to make rain",
+      operatorPrompt: "Can you sway side to side to make a little rain?",
+      simplified: "Move side to side",
       celebration: "You made the rain!"
     },
     {
       key: "still",
-      label: "Step 5 of 5: Freeze for the butterfly",
-      prompt: "Can you stay very still so the butterfly lands?",
-      simplified: "Freeze like a statue.",
+      label: "Step 5 of 5",
+      prompt: "Freeze and wait for the butterfly",
+      operatorPrompt: "Can you stay very still so the butterfly lands?",
+      simplified: "Freeze like a statue",
       celebration: "The butterfly found your garden!"
     }
   ]
@@ -138,9 +148,6 @@ const smartCoach = {
   stuckFrames: 0,
   successFrames: 0,
   simplifiedMode: false,
-  recentPraise: "",
-  recentHint: "",
-  lastStepAt: 0,
   lastHintAt: 0,
   lastPraiseAt: 0
 };
@@ -210,12 +217,12 @@ function mapLandmark(landmark) {
 function speak(text, force = false) {
   if (!config.audio || !("speechSynthesis" in window)) return;
   const now = performance.now();
-  if (!force && now - lastSpokenTime < 2200) return;
+  if (!force && now - lastSpokenTime < 2600) return;
 
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.92;
-  utterance.pitch = 1.06;
+  utterance.rate = 0.85;
+  utterance.pitch = 1.02;
   utterance.volume = 1;
   window.speechSynthesis.speak(utterance);
   lastSpokenTime = now;
@@ -225,32 +232,53 @@ function currentStep() {
   return sequence.steps[sequence.step];
 }
 
+function syncKidPrompt() {
+  if (config.difficulty === "freeplay") {
+    kidStepText.textContent = "Free Play";
+    kidPromptText.textContent = "Grow the garden your way";
+    kidCoachText.textContent = "Crouch, stretch, sway, and freeze.";
+    return;
+  }
+
+  const step = currentStep();
+  kidStepText.textContent = step.label;
+  kidPromptText.textContent = smartCoach.simplifiedMode ? step.simplified : step.prompt;
+}
+
 function updateGuidance() {
   if (config.difficulty === "freeplay") {
     stepText.textContent = "Free Play Mode";
     promptText.textContent = "Crouch, grow, wake the sun, sway for rain, and freeze for a butterfly.";
     coachText.textContent = "Try any movement and watch the garden respond.";
+    syncKidPrompt();
     return;
   }
 
   const step = currentStep();
-  stepText.textContent = step.label;
-  promptText.textContent = smartCoach.simplifiedMode ? step.simplified : step.prompt;
+  stepText.textContent = `${step.label}: ${step.prompt}`;
+  promptText.textContent = smartCoach.simplifiedMode ? step.simplified : step.operatorPrompt;
+  syncKidPrompt();
 }
 
 function repeatPrompt() {
-  speak(promptText.textContent, true);
+  speak(kidPromptText.textContent, true);
 }
 
 function resetCoachState() {
   smartCoach.stuckFrames = 0;
   smartCoach.successFrames = 0;
   smartCoach.simplifiedMode = false;
-  smartCoach.recentPraise = "";
-  smartCoach.recentHint = "";
   smartCoach.lastHintAt = 0;
   smartCoach.lastPraiseAt = 0;
-  coachText.textContent = "I’ll help you if you get stuck.";
+  coachText.textContent = "Take your time. The garden is ready.";
+  kidCoachText.textContent = "Take your time. The garden is ready.";
+}
+
+function startBreathingPause(message) {
+  sequence.waitingForNextStep = true;
+  sequence.waitTimer = 180; // about 3 seconds at 60fps
+  coachText.textContent = message;
+  kidCoachText.textContent = message;
 }
 
 function advanceSequence() {
@@ -258,25 +286,42 @@ function advanceSequence() {
 
   const step = currentStep();
   coachText.textContent = step.celebration;
+  kidCoachText.textContent = step.celebration;
   speak(step.celebration, true);
 
   if (sequence.step < sequence.steps.length - 1) {
-    sequence.step += 1;
-    resetCoachState();
-    updateGuidance();
-    speak(promptText.textContent, true);
+    startBreathingPause(step.celebration);
   } else {
     sequence.completed = true;
+    sequence.waitingForNextStep = false;
     stepText.textContent = "Garden Complete!";
     promptText.textContent = "You helped the whole garden come alive!";
     coachText.textContent = "Amazing work, gardener!";
+    kidStepText.textContent = "Garden Complete!";
+    kidPromptText.textContent = "You helped the whole garden come alive!";
+    kidCoachText.textContent = "Amazing work, gardener!";
     speak("You helped the whole garden come alive!", true);
+  }
+}
+
+function updateSequencePause() {
+  if (!sequence.waitingForNextStep) return;
+
+  sequence.waitTimer -= 1;
+  if (sequence.waitTimer <= 0) {
+    sequence.waitingForNextStep = false;
+    sequence.step += 1;
+    resetCoachState();
+    updateGuidance();
+    speak(kidPromptText.textContent, true);
   }
 }
 
 function resetSequence() {
   sequence.step = 0;
   sequence.completed = false;
+  sequence.waitingForNextStep = false;
+  sequence.waitTimer = 0;
   resetCoachState();
   updateGuidance();
 }
@@ -571,16 +616,31 @@ function drawFlower(flower, time) {
   ctx.restore();
 }
 
+function drawRaindrop(x, y, size) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size, size);
+
+  ctx.beginPath();
+  ctx.moveTo(0, -10);
+  ctx.quadraticCurveTo(6, -2, 5, 5);
+  ctx.quadraticCurveTo(4, 11, 0, 12);
+  ctx.quadraticCurveTo(-4, 11, -5, 5);
+  ctx.quadraticCurveTo(-6, -2, 0, -10);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, -10, 0, 12);
+  grad.addColorStop(0, "rgba(180, 235, 255, 0.95)");
+  grad.addColorStop(1, "rgba(24,168,224,0.72)");
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.restore();
+}
+
 function drawRain() {
   for (const drop of garden.raindrops) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(24,168,224,0.68)";
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.moveTo(drop.x, drop.y);
-    ctx.lineTo(drop.x - 2, drop.y + 8);
-    ctx.stroke();
-    ctx.restore();
+    drawRaindrop(drop.x, drop.y, drop.size);
   }
 }
 
@@ -590,7 +650,7 @@ function drawButterflies() {
 
     b.x = lerp(b.x, b.tx, 0.03);
     b.y = lerp(b.y, b.ty, 0.03);
-    b.wing += 0.25;
+    b.wing += 0.18;
 
     const flap = Math.sin(b.wing) * 8;
 
@@ -670,11 +730,12 @@ function drawDebugSkeleton() {
 }
 
 function emitRainBurst() {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     garden.raindrops.push({
       x: rand(width * 0.18, width * 0.84),
       y: rand(height * 0.20, height * 0.34),
-      vy: rand(4.2, 6.2)
+      vy: rand(2.2, 3.5),
+      size: rand(0.9, 1.5)
     });
   }
 }
@@ -695,7 +756,7 @@ function emitPollen(x, y, color) {
 
 function updateEnvironmentalMotion() {
   for (const cloud of garden.clouds) {
-    cloud.x += cloud.speed + actionState.swayAmount * 0.001;
+    cloud.x += cloud.speed + actionState.swayAmount * 0.0008;
     if (cloud.x > width + 120) cloud.x = -120;
   }
 
@@ -732,8 +793,8 @@ function updateFlowers() {
     }
 
     if (flower.planted) {
-      flower.growth = clamp(flower.growth + actionState.growEnergy * 0.0022, 0, 1);
-      if (flower.growth > 0.32 && Math.random() < 0.03) {
+      flower.growth = clamp(flower.growth + actionState.growEnergy * 0.0016, 0, 1);
+      if (flower.growth > 0.32 && Math.random() < 0.02) {
         emitPollen(flower.x, flower.y - (40 + flower.growth * 85), flower.bloomColor);
       }
     }
@@ -744,12 +805,12 @@ function updateButterflies() {
   const grownFlowers = garden.flowers.filter(f => f.growth > 0.55);
   const butterfly = garden.butterflies[0];
 
-  if (actionState.stillness > 0.82 && grownFlowers.length > 0) {
+  if (actionState.stillness > 0.88 && grownFlowers.length > 0) {
     const targetFlower = grownFlowers[Math.floor(Math.random() * grownFlowers.length)];
     butterfly.visible = true;
     butterfly.tx = targetFlower.x + rand(-8, 8);
     butterfly.ty = targetFlower.y - (85 + targetFlower.growth * 45);
-  } else if (actionState.stillness < 0.45) {
+  } else if (actionState.stillness < 0.52) {
     butterfly.visible = false;
   }
 }
@@ -797,21 +858,21 @@ function updateGestureConfidence() {
   let crouchingRaw = false;
   if (leftKnee && rightKnee) {
     const kneeY = (leftKnee.y + rightKnee.y) * 0.5;
-    crouchingRaw = (kneeY - hipY) < torsoHeight * 0.68;
+    crouchingRaw = (kneeY - hipY) < torsoHeight * 0.66;
   }
 
   const handMotion =
     distance(leftWrist, leftShoulder) +
     distance(rightWrist, rightShoulder);
 
-  const growRaw = !crouchingRaw ? clamp(handMotion / 320, 0, 1) : 0;
-  const swayRaw = clamp((swayOffset - 20) / 35, 0, 1);
+  const growRaw = !crouchingRaw ? clamp(handMotion / 360, 0, 1) : 0;
+  const swayRaw = clamp((swayOffset - 24) / 42, 0, 1);
 
   const motionAmount =
-    distance(leftWrist, rightWrist) * 0.002 +
-    swayOffset * 0.028;
+    distance(leftWrist, rightWrist) * 0.0017 +
+    swayOffset * 0.02;
 
-  const stillRaw = motionAmount < 1.2 && !crouchingRaw && !handsUpRaw ? 1 : 0;
+  const stillRaw = motionAmount < 0.95 && !crouchingRaw && !handsUpRaw ? 1 : 0;
 
   gestureConfidence.crouch = lerp(gestureConfidence.crouch, crouchingRaw ? 1 : 0, 0.08);
   gestureConfidence.grow = lerp(gestureConfidence.grow, growRaw, 0.08);
@@ -823,35 +884,35 @@ function updateGestureConfidence() {
 function updateActionState() {
   updateGestureConfidence();
 
-  timers.plantHold = gestureConfidence.crouch > 0.68 ? timers.plantHold + 1 : 0;
-  timers.growHold = gestureConfidence.grow > 0.24 ? timers.growHold + 1 : 0;
-  timers.sunHold = gestureConfidence.handsUp > 0.72 ? timers.sunHold + 1 : 0;
-  timers.rainHold = gestureConfidence.sway > 0.52 ? timers.rainHold + 1 : 0;
-  timers.stillHold = gestureConfidence.still > 0.82 ? timers.stillHold + 1 : 0;
+  timers.plantHold = gestureConfidence.crouch > 0.7 ? timers.plantHold + 1 : 0;
+  timers.growHold = gestureConfidence.grow > 0.28 ? timers.growHold + 1 : 0;
+  timers.sunHold = gestureConfidence.handsUp > 0.76 ? timers.sunHold + 1 : 0;
+  timers.rainHold = gestureConfidence.sway > 0.58 ? timers.rainHold + 1 : 0;
+  timers.stillHold = gestureConfidence.still > 0.86 ? timers.stillHold + 1 : 0;
 
-  if (timers.plantHold > 18) {
+  if (timers.plantHold > 26) {
     actionState.plantedPulse = 1;
   } else {
     actionState.plantedPulse = lerp(actionState.plantedPulse, 0, 0.12);
   }
 
-  actionState.growEnergy = lerp(actionState.growEnergy, gestureConfidence.grow, 0.06);
-  actionState.sunEnergy = lerp(actionState.sunEnergy, gestureConfidence.handsUp, 0.06);
-  actionState.rainEnergy = lerp(actionState.rainEnergy, gestureConfidence.sway, 0.05);
-  actionState.stillness = lerp(actionState.stillness, gestureConfidence.still, 0.05);
-  actionState.swayAmount = lerp(actionState.swayAmount, gestureConfidence.sway * 40, 0.08);
+  actionState.growEnergy = lerp(actionState.growEnergy, gestureConfidence.grow, 0.04);
+  actionState.sunEnergy = lerp(actionState.sunEnergy, gestureConfidence.handsUp, 0.04);
+  actionState.rainEnergy = lerp(actionState.rainEnergy, gestureConfidence.sway, 0.04);
+  actionState.stillness = lerp(actionState.stillness, gestureConfidence.still, 0.04);
+  actionState.swayAmount = lerp(actionState.swayAmount, gestureConfidence.sway * 36, 0.05);
 
-  garden.sunLevel = lerp(garden.sunLevel, actionState.sunEnergy, 0.035);
+  garden.sunLevel = lerp(garden.sunLevel, actionState.sunEnergy, 0.025);
 
   if (timers.rainCooldown > 0) timers.rainCooldown -= 1;
-  if (timers.rainHold > 16 && timers.rainCooldown <= 0) {
+  if (timers.rainHold > 28 && timers.rainCooldown <= 0) {
     emitRainBurst();
-    timers.rainCooldown = 22;
+    timers.rainCooldown = 34;
   }
 }
 
 function updateSmartCoach() {
-  if (config.difficulty !== "guided" || sequence.completed) return;
+  if (config.difficulty !== "guided" || sequence.completed || sequence.waitingForNextStep) return;
 
   const step = currentStep();
   const now = performance.now();
@@ -862,7 +923,7 @@ function updateSmartCoach() {
 
   if (step.key === "plant") {
     confidence = gestureConfidence.crouch;
-    hint = confidence > 0.4 ? "A little lower." : "Try bending down low.";
+    hint = confidence > 0.42 ? "A little lower." : "Try bending down low.";
     praise = "Yes, you’re planting!";
   }
 
@@ -874,23 +935,23 @@ function updateSmartCoach() {
 
   if (step.key === "sun") {
     confidence = gestureConfidence.handsUp;
-    hint = confidence > 0.45 ? "Lift both hands higher." : "Put both hands up in the sky.";
+    hint = confidence > 0.46 ? "Lift both hands higher." : "Put both hands up in the sky.";
     praise = "You found the sun move!";
   }
 
   if (step.key === "rain") {
     confidence = gestureConfidence.sway;
-    hint = confidence > 0.35 ? "Bigger side to side." : "Move your body side to side.";
+    hint = confidence > 0.34 ? "Make a bigger sway." : "Move side to side.";
     praise = "That’s the rain move!";
   }
 
   if (step.key === "still") {
     confidence = gestureConfidence.still;
-    hint = confidence > 0.35 ? "Almost. Stay still." : "Freeze like a statue.";
+    hint = confidence > 0.42 ? "Almost. Stay still." : "Freeze like a statue.";
     praise = "Beautiful stillness!";
   }
 
-  if (confidence > 0.45) {
+  if (confidence > 0.46) {
     smartCoach.successFrames += 1;
     smartCoach.stuckFrames = 0;
   } else {
@@ -898,28 +959,28 @@ function updateSmartCoach() {
     smartCoach.successFrames = 0;
   }
 
-  if (smartCoach.successFrames > 18 && now - smartCoach.lastPraiseAt > 2600) {
+  if (smartCoach.successFrames > 24 && now - smartCoach.lastPraiseAt > 3400) {
     coachText.textContent = praise;
+    kidCoachText.textContent = praise;
     smartCoach.lastPraiseAt = now;
-    smartCoach.recentPraise = praise;
   }
 
-  if (smartCoach.stuckFrames > 120) {
+  if (smartCoach.stuckFrames > 150) {
     smartCoach.simplifiedMode = true;
   }
 
-  if (smartCoach.stuckFrames > 140 && now - smartCoach.lastHintAt > 3200) {
+  if (smartCoach.stuckFrames > 170 && now - smartCoach.lastHintAt > 4200) {
     coachText.textContent = hint;
+    kidCoachText.textContent = hint;
     speak(hint);
     smartCoach.lastHintAt = now;
-    smartCoach.recentHint = hint;
   }
 
   updateGuidance();
 }
 
 function checkGuidedStepCompletion() {
-  if (config.difficulty !== "guided" || sequence.completed) return;
+  if (config.difficulty !== "guided" || sequence.completed || sequence.waitingForNextStep) return;
 
   const current = currentStep();
 
@@ -938,12 +999,12 @@ function checkGuidedStepCompletion() {
     return;
   }
 
-  if (current.key === "rain" && garden.raindrops.length > 10) {
+  if (current.key === "rain" && garden.raindrops.length > 12) {
     advanceSequence();
     return;
   }
 
-  if (current.key === "still" && actionState.stillness > 0.84 && garden.butterflies[0].visible) {
+  if (current.key === "still" && actionState.stillness > 0.9 && garden.butterflies[0].visible) {
     advanceSequence();
   }
 }
@@ -1124,7 +1185,7 @@ async function startExperience() {
   startupOverlay.classList.add("hidden");
 
   updateGuidance();
-  speak(promptText.textContent, true);
+  speak(kidPromptText.textContent, true);
 }
 
 function drawScene(time) {
@@ -1145,7 +1206,6 @@ function drawScene(time) {
 }
 
 function animate(time) {
-  frameCount += 1;
   ctx.clearRect(0, 0, width, height);
 
   updateActionState();
@@ -1154,6 +1214,7 @@ function animate(time) {
   updateEnvironmentalMotion();
   updateSmartCoach();
   checkGuidedStepCompletion();
+  updateSequencePause();
   drawScene(time || 0);
   drawAttractMode();
 
