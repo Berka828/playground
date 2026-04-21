@@ -16,12 +16,14 @@ const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 const gardenThemeSelect = document.getElementById("gardenThemeSelect");
 const difficultySelect = document.getElementById("difficultySelect");
+const audioToggle = document.getElementById("audioToggle");
 const debugToggle = document.getElementById("debugToggle");
 const mirrorToggle = document.getElementById("mirrorToggle");
 const uiVisibleToggle = document.getElementById("uiVisibleToggle");
-const nextPromptBtn = document.getElementById("nextPromptBtn");
+const repeatPromptBtn = document.getElementById("repeatPromptBtn");
 const resetBtn = document.getElementById("resetBtn");
 const promptText = document.getElementById("promptText");
+const stepText = document.getElementById("stepText");
 
 let width = window.innerWidth;
 let height = window.innerHeight;
@@ -32,7 +34,6 @@ let cameraController = null;
 let currentStream = null;
 let currentDeviceId = "";
 let lastSeenBodyTime = 0;
-let promptIndex = 0;
 
 const config = {
   mirror: true,
@@ -42,16 +43,9 @@ const config = {
   hideUiInInstallation: true,
   attractModeDelayMs: 5000,
   gardenTheme: "spring",
-  difficulty: "guided"
+  difficulty: "guided",
+  audio: true
 };
-
-const prompts = [
-  "Can you crouch down and plant a seed?",
-  "Can you stand tall and help the flower grow?",
-  "Can you raise both hands to wake the sun?",
-  "Can you sway side to side to make rain?",
-  "Can you stay very still so the butterfly lands?"
-];
 
 const poseState = {
   leftShoulder: null,
@@ -68,13 +62,11 @@ const poseState = {
 };
 
 const actionState = {
-  planted: false,
-  plantCooldown: 0,
+  plantedPulse: 0,
   growEnergy: 0,
   sunEnergy: 0,
   rainEnergy: 0,
   stillness: 0,
-  breeze: 0,
   swayAmount: 0
 };
 
@@ -85,7 +77,48 @@ const garden = {
   clouds: [],
   pollen: [],
   sunLevel: 0,
-  guideMessageTimer: 0
+  skylineParallax: 0
+};
+
+const sequence = {
+  step: 0,
+  completed: false,
+  steps: [
+    {
+      key: "plant",
+      label: "Step 1 of 5: Plant the seed",
+      prompt: "Can you crouch down and plant a seed?"
+    },
+    {
+      key: "grow",
+      label: "Step 2 of 5: Stand tall and grow the flower",
+      prompt: "Can you stand tall and help the flower grow?"
+    },
+    {
+      key: "sun",
+      label: "Step 3 of 5: Wake the sun",
+      prompt: "Can you raise both hands to wake the sun?"
+    },
+    {
+      key: "rain",
+      label: "Step 4 of 5: Make the rain",
+      prompt: "Can you sway side to side to make a little rain?"
+    },
+    {
+      key: "still",
+      label: "Step 5 of 5: Freeze for the butterfly",
+      prompt: "Can you stay very still so the butterfly lands?"
+    }
+  ]
+};
+
+const timers = {
+  plantHold: 0,
+  growHold: 0,
+  sunHold: 0,
+  rainHold: 0,
+  stillHold: 0,
+  rainCooldown: 0
 };
 
 function setStatus(text, mode = "normal") {
@@ -130,10 +163,7 @@ function distance(a, b) {
 
 function averagePoint(a, b) {
   if (!a || !b) return null;
-  return {
-    x: (a.x + b.x) * 0.5,
-    y: (a.y + b.y) * 0.5
-  };
+  return { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 };
 }
 
 function mapLandmark(landmark) {
@@ -144,8 +174,55 @@ function mapLandmark(landmark) {
   return { x, y, visibility: landmark.visibility ?? 0 };
 }
 
+function speak(text) {
+  if (!config.audio || !("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.92;
+  utterance.pitch = 1.08;
+  utterance.volume = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
+function updateGuidance() {
+  if (config.difficulty === "freeplay") {
+    stepText.textContent = "Free Play Mode";
+    promptText.textContent = "Crouch, grow, wake the sun, sway for rain, and freeze for a butterfly.";
+    return;
+  }
+
+  const current = sequence.steps[sequence.step];
+  stepText.textContent = current.label;
+  promptText.textContent = current.prompt;
+}
+
+function repeatPrompt() {
+  speak(promptText.textContent);
+}
+
+function advanceSequence() {
+  if (config.difficulty !== "guided") return;
+
+  if (sequence.step < sequence.steps.length - 1) {
+    sequence.step += 1;
+    updateGuidance();
+    speak(promptText.textContent);
+  } else {
+    sequence.completed = true;
+    stepText.textContent = "Garden Complete!";
+    promptText.textContent = "You helped the whole garden come alive!";
+    speak("You helped the whole garden come alive!");
+  }
+}
+
+function resetSequence() {
+  sequence.step = 0;
+  sequence.completed = false;
+  updateGuidance();
+}
+
 function createFlowerPatch() {
-  const groundY = height * 0.78;
+  const groundY = height * 0.79;
   const spacing = width / 6;
   garden.flowers = [];
 
@@ -164,9 +241,9 @@ function createFlowerPatch() {
 
 function createClouds() {
   garden.clouds = [
-    { x: width * 0.2, y: height * 0.16, scale: 1.0, speed: 0.08 },
-    { x: width * 0.52, y: height * 0.12, scale: 1.25, speed: 0.05 },
-    { x: width * 0.78, y: height * 0.18, scale: 0.95, speed: 0.07 }
+    { x: width * 0.16, y: height * 0.15, scale: 1.0, speed: 0.05 },
+    { x: width * 0.50, y: height * 0.12, scale: 1.18, speed: 0.04 },
+    { x: width * 0.80, y: height * 0.18, scale: 0.92, speed: 0.05 }
   ];
 }
 
@@ -174,9 +251,9 @@ function createButterflies() {
   garden.butterflies = [
     {
       x: width * 0.72,
-      y: height * 0.45,
+      y: height * 0.46,
       tx: width * 0.72,
-      ty: height * 0.45,
+      ty: height * 0.46,
       visible: false,
       wing: 0
     }
@@ -187,17 +264,26 @@ function resetGarden() {
   garden.raindrops = [];
   garden.pollen = [];
   garden.sunLevel = 0;
-  actionState.planted = false;
-  actionState.plantCooldown = 0;
+  garden.skylineParallax = 0;
+
+  actionState.plantedPulse = 0;
   actionState.growEnergy = 0;
   actionState.sunEnergy = 0;
   actionState.rainEnergy = 0;
   actionState.stillness = 0;
-  actionState.breeze = 0;
   actionState.swayAmount = 0;
+
+  timers.plantHold = 0;
+  timers.growHold = 0;
+  timers.sunHold = 0;
+  timers.rainHold = 0;
+  timers.stillHold = 0;
+  timers.rainCooldown = 0;
+
   createFlowerPatch();
   createClouds();
   createButterflies();
+  resetSequence();
 }
 
 function getThemeColors() {
@@ -246,15 +332,6 @@ function syncCameraSelects(value) {
   cameraSelectInline.value = value;
 }
 
-function updatePrompt() {
-  promptText.textContent = prompts[promptIndex % prompts.length];
-}
-
-function nextPrompt() {
-  promptIndex += 1;
-  updatePrompt();
-}
-
 function drawSky() {
   const colors = getThemeColors();
   const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -266,6 +343,41 @@ function drawSky() {
   for (const cloud of garden.clouds) {
     drawCloud(cloud.x, cloud.y, cloud.scale);
   }
+}
+
+function drawBronxSkyline() {
+  const horizonY = height * 0.66;
+  const baseColor = config.gardenTheme === "bronx" ? "rgba(77, 96, 128, 0.33)" : "rgba(92, 110, 130, 0.22)";
+
+  ctx.save();
+  ctx.fillStyle = baseColor;
+  ctx.beginPath();
+  ctx.moveTo(0, horizonY);
+
+  const buildings = [
+    [0.03, 0.03], [0.08, 0.08], [0.12, 0.05], [0.16, 0.10], [0.21, 0.04],
+    [0.28, 0.09], [0.34, 0.05], [0.41, 0.11], [0.48, 0.06], [0.56, 0.13],
+    [0.63, 0.07], [0.69, 0.12], [0.75, 0.05], [0.82, 0.10], [0.89, 0.04], [0.96, 0.08]
+  ];
+
+  ctx.lineTo(0, horizonY);
+  for (const [px, h] of buildings) {
+    const x = px * width + garden.skylineParallax;
+    const bw = width * 0.03;
+    const bh = height * h;
+    ctx.lineTo(x, horizonY);
+    ctx.lineTo(x, horizonY - bh);
+    ctx.lineTo(x + bw, horizonY - bh);
+    ctx.lineTo(x + bw, horizonY);
+  }
+
+  ctx.lineTo(width, horizonY);
+  ctx.lineTo(width, height);
+  ctx.lineTo(0, height);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawGround() {
@@ -396,17 +508,17 @@ function drawFlower(flower, time) {
 function drawRain() {
   for (const drop of garden.raindrops) {
     ctx.save();
-    ctx.strokeStyle = "rgba(24,168,224,0.75)";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(24,168,224,0.68)";
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
     ctx.moveTo(drop.x, drop.y);
-    ctx.lineTo(drop.x - 4, drop.y + 14);
+    ctx.lineTo(drop.x - 2, drop.y + 8);
     ctx.stroke();
     ctx.restore();
   }
 }
 
-function drawButterflies(time) {
+function drawButterflies() {
   for (const b of garden.butterflies) {
     if (!b.visible) continue;
 
@@ -491,12 +603,12 @@ function drawDebugSkeleton() {
   ctx.restore();
 }
 
-function emitRain() {
-  for (let i = 0; i < 6; i++) {
+function emitRainBurst() {
+  for (let i = 0; i < 5; i++) {
     garden.raindrops.push({
-      x: rand(width * 0.12, width * 0.88),
-      y: rand(height * 0.18, height * 0.38),
-      vy: rand(7, 10)
+      x: rand(width * 0.18, width * 0.84),
+      y: rand(height * 0.20, height * 0.34),
+      vy: rand(4.2, 6.2)
     });
   }
 }
@@ -515,55 +627,47 @@ function emitPollen(x, y, color) {
   }
 }
 
-function updateEnvironmentalMotion(time) {
+function updateEnvironmentalMotion() {
   for (const cloud of garden.clouds) {
-    cloud.x += cloud.speed + actionState.breeze * 0.08;
+    cloud.x += cloud.speed + actionState.swayAmount * 0.001;
     if (cloud.x > width + 120) cloud.x = -120;
   }
 
   for (let i = garden.raindrops.length - 1; i >= 0; i--) {
     const drop = garden.raindrops[i];
     drop.y += drop.vy;
-    drop.x += actionState.breeze * 0.4;
-    if (drop.y > height * 0.82) {
+    if (drop.y > height * 0.80) {
       garden.raindrops.splice(i, 1);
     }
   }
 
   for (let i = garden.pollen.length - 1; i >= 0; i--) {
     const p = garden.pollen[i];
-    p.x += p.vx + actionState.breeze * 0.3;
+    p.x += p.vx;
     p.y += p.vy;
     p.alpha -= 0.015;
     if (p.alpha <= 0) garden.pollen.splice(i, 1);
   }
 
+  garden.skylineParallax = Math.sin(performance.now() * 0.00008) * 10;
+
   const activeBody = performance.now() - lastSeenBodyTime < config.attractModeDelayMs;
   if (!activeBody && config.installationMode) {
-    actionState.breeze = lerp(actionState.breeze, 0.25, 0.02);
-    garden.sunLevel = lerp(garden.sunLevel, 0.55, 0.01);
-
-    if (Math.random() < 0.08) emitRain();
-  } else {
-    actionState.breeze = lerp(actionState.breeze, clamp(actionState.swayAmount * 0.03, 0, 0.8), 0.08);
-  }
-
-  if (actionState.rainEnergy > 0.2 && Math.random() < 0.5) {
-    emitRain();
+    garden.sunLevel = lerp(garden.sunLevel, 0.45, 0.008);
   }
 }
 
 function updateFlowers() {
   for (const flower of garden.flowers) {
-    if (actionState.planted && !flower.planted) {
+    if (actionState.plantedPulse > 0.7 && !flower.planted) {
       flower.planted = true;
       flower.growth = Math.max(flower.growth, 0.06);
       emitPollen(flower.x, flower.y - 8, flower.bloomColor);
     }
 
     if (flower.planted) {
-      flower.growth = clamp(flower.growth + actionState.growEnergy * 0.003, 0, 1);
-      if (flower.growth > 0.32 && Math.random() < 0.04) {
+      flower.growth = clamp(flower.growth + actionState.growEnergy * 0.0022, 0, 1);
+      if (flower.growth > 0.32 && Math.random() < 0.03) {
         emitPollen(flower.x, flower.y - (40 + flower.growth * 85), flower.bloomColor);
       }
     }
@@ -574,14 +678,23 @@ function updateButterflies() {
   const grownFlowers = garden.flowers.filter(f => f.growth > 0.55);
   const butterfly = garden.butterflies[0];
 
-  if (actionState.stillness > 0.75 && grownFlowers.length > 0) {
+  if (actionState.stillness > 0.82 && grownFlowers.length > 0) {
     const targetFlower = grownFlowers[Math.floor(Math.random() * grownFlowers.length)];
     butterfly.visible = true;
     butterfly.tx = targetFlower.x + rand(-8, 8);
     butterfly.ty = targetFlower.y - (85 + targetFlower.growth * 45);
-  } else if (actionState.stillness < 0.35) {
+  } else if (actionState.stillness < 0.45) {
     butterfly.visible = false;
   }
+}
+
+function allFlowersPlanted() {
+  return garden.flowers.every(f => f.planted);
+}
+
+function averageGrowth() {
+  const total = garden.flowers.reduce((sum, f) => sum + f.growth, 0);
+  return total / garden.flowers.length;
 }
 
 function updateActionState() {
@@ -595,6 +708,7 @@ function updateActionState() {
   const rightKnee = poseState.rightKnee;
 
   if (!leftWrist || !rightWrist || !leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+    actionState.plantedPulse = lerp(actionState.plantedPulse, 0, 0.1);
     actionState.growEnergy = lerp(actionState.growEnergy, 0, 0.1);
     actionState.sunEnergy = lerp(actionState.sunEnergy, 0, 0.1);
     actionState.rainEnergy = lerp(actionState.rainEnergy, 0, 0.1);
@@ -608,8 +722,8 @@ function updateActionState() {
   const torsoHeight = Math.max(hipY - shoulderY, 1);
 
   const handsUp =
-    leftWrist.y < leftShoulder.y - torsoHeight * 0.15 &&
-    rightWrist.y < rightShoulder.y - torsoHeight * 0.15;
+    leftWrist.y < leftShoulder.y - torsoHeight * 0.12 &&
+    rightWrist.y < rightShoulder.y - torsoHeight * 0.12;
 
   const centerX = averagePoint(leftHip, rightHip)?.x ?? width * 0.5;
   const shoulderCenterX = averagePoint(leftShoulder, rightShoulder)?.x ?? centerX;
@@ -618,7 +732,7 @@ function updateActionState() {
   let crouching = false;
   if (leftKnee && rightKnee) {
     const kneeY = (leftKnee.y + rightKnee.y) * 0.5;
-    crouching = (kneeY - hipY) < torsoHeight * 0.75;
+    crouching = (kneeY - hipY) < torsoHeight * 0.68;
   } else {
     crouching = torsoHeight < height * 0.16;
   }
@@ -627,31 +741,70 @@ function updateActionState() {
     distance(leftWrist, leftShoulder) +
     distance(rightWrist, rightShoulder);
 
-  actionState.growEnergy = lerp(actionState.growEnergy, crouching ? 0 : clamp(handMotion / 280, 0.08, 1.1), 0.06);
-  actionState.sunEnergy = lerp(actionState.sunEnergy, handsUp ? 1 : 0, 0.08);
-  actionState.rainEnergy = lerp(actionState.rainEnergy, clamp(swayOffset / 45, 0, 1), 0.08);
-  actionState.swayAmount = lerp(actionState.swayAmount, swayOffset, 0.1);
+  const swayStrongEnough = swayOffset > 20;
+
+  actionState.growEnergy = lerp(actionState.growEnergy, crouching ? 0 : clamp(handMotion / 320, 0.04, 0.8), 0.06);
+  actionState.sunEnergy = lerp(actionState.sunEnergy, handsUp ? 1 : 0, 0.06);
+  actionState.rainEnergy = lerp(actionState.rainEnergy, swayStrongEnough ? clamp((swayOffset - 20) / 35, 0, 1) : 0, 0.05);
+  actionState.swayAmount = lerp(actionState.swayAmount, swayOffset, 0.08);
 
   const motionAmount =
-    distance(leftWrist, rightWrist) * 0.003 +
-    swayOffset * 0.05 +
-    Math.abs(actionState.rainEnergy * 12);
+    distance(leftWrist, rightWrist) * 0.002 +
+    swayOffset * 0.028;
 
-  const isStill = motionAmount < 1.8 && !crouching && !handsUp;
+  const isStill = motionAmount < 1.2 && !crouching && !handsUp;
   actionState.stillness = lerp(actionState.stillness, isStill ? 1 : 0, 0.05);
 
-  if (crouching && actionState.plantCooldown <= 0) {
-    actionState.planted = true;
-    actionState.plantCooldown = 70;
+  timers.plantHold = crouching ? timers.plantHold + 1 : 0;
+  timers.growHold = !crouching && averageGrowth() < 1 ? timers.growHold + 1 : 0;
+  timers.sunHold = handsUp ? timers.sunHold + 1 : 0;
+  timers.rainHold = swayStrongEnough ? timers.rainHold + 1 : 0;
+  timers.stillHold = isStill ? timers.stillHold + 1 : 0;
+
+  if (timers.plantHold > 18) {
+    actionState.plantedPulse = 1;
   } else {
-    actionState.planted = false;
+    actionState.plantedPulse = lerp(actionState.plantedPulse, 0, 0.12);
   }
 
-  if (actionState.plantCooldown > 0) {
-    actionState.plantCooldown -= 1;
+  garden.sunLevel = lerp(garden.sunLevel, actionState.sunEnergy, 0.035);
+
+  if (timers.rainCooldown > 0) timers.rainCooldown -= 1;
+
+  if (timers.rainHold > 16 && timers.rainCooldown <= 0) {
+    emitRainBurst();
+    timers.rainCooldown = 22;
+  }
+}
+
+function checkGuidedStepCompletion() {
+  if (config.difficulty !== "guided" || sequence.completed) return;
+
+  const current = sequence.steps[sequence.step];
+
+  if (current.key === "plant" && allFlowersPlanted()) {
+    advanceSequence();
+    return;
   }
 
-  garden.sunLevel = lerp(garden.sunLevel, actionState.sunEnergy, 0.04);
+  if (current.key === "grow" && averageGrowth() > 0.45) {
+    advanceSequence();
+    return;
+  }
+
+  if (current.key === "sun" && garden.sunLevel > 0.72) {
+    advanceSequence();
+    return;
+  }
+
+  if (current.key === "rain" && garden.raindrops.length > 10) {
+    advanceSequence();
+    return;
+  }
+
+  if (current.key === "still" && actionState.stillness > 0.84 && garden.butterflies[0].visible) {
+    advanceSequence();
+  }
 }
 
 function drawAttractMode() {
@@ -770,8 +923,8 @@ async function startPoseWithSelectedCamera(deviceId) {
         smoothLandmarks: true,
         enableSegmentation: false,
         smoothSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
+        minDetectionConfidence: 0.55,
+        minTrackingConfidence: 0.55
       });
 
       poseInstance.onResults(onPoseResults);
@@ -828,10 +981,14 @@ async function startExperience() {
 
   startupOverlay.classList.remove("visible");
   startupOverlay.classList.add("hidden");
+
+  updateGuidance();
+  speak(promptText.textContent);
 }
 
 function drawScene(time) {
   drawSky();
+  drawBronxSkyline();
   drawSun();
   drawRain();
   drawPollen();
@@ -842,7 +999,7 @@ function drawScene(time) {
     drawFlower(flower, time);
   }
 
-  drawButterflies(time);
+  drawButterflies();
   drawDebugSkeleton();
 }
 
@@ -852,7 +1009,8 @@ function animate(time) {
   updateActionState();
   updateFlowers();
   updateButterflies();
-  updateEnvironmentalMotion(time || 0);
+  updateEnvironmentalMotion();
+  checkGuidedStepCompletion();
   drawScene(time || 0);
   drawAttractMode();
 
@@ -866,6 +1024,11 @@ gardenThemeSelect.addEventListener("change", () => {
 
 difficultySelect.addEventListener("change", () => {
   config.difficulty = difficultySelect.value;
+  resetSequence();
+});
+
+audioToggle.addEventListener("change", () => {
+  config.audio = audioToggle.checked;
 });
 
 debugToggle.addEventListener("change", () => {
@@ -881,7 +1044,7 @@ uiVisibleToggle.addEventListener("change", () => {
   else ui.classList.add("hidden");
 });
 
-nextPromptBtn.addEventListener("click", nextPrompt);
+repeatPromptBtn.addEventListener("click", repeatPrompt);
 
 resetBtn.addEventListener("click", () => {
   resetGarden();
@@ -908,6 +1071,6 @@ window.addEventListener("resize", () => {
 
 resizeCanvas();
 resetGarden();
-updatePrompt();
 requestAnimationFrame(animate);
 loadCameraOptions();
+updateGuidance();
