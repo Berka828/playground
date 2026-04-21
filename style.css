@@ -200,6 +200,54 @@ body {
   color: #294055;
 }
 
+/* BIG CHILD-FACING PROMPT */
+.kid-prompt-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  transform: translateX(-50%);
+  z-index: 30;
+  pointer-events: none;
+  width: min(1000px, 90vw);
+  display: flex;
+  justify-content: center;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.kid-prompt-card {
+  width: 100%;
+  text-align: center;
+  padding: 22px 28px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.65);
+}
+
+.kid-step {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bx-magenta);
+  margin-bottom: 8px;
+}
+
+.kid-main-prompt {
+  font-size: clamp(28px, 4vw, 52px);
+  line-height: 1.08;
+  font-weight: 800;
+  color: #11324d;
+  margin-bottom: 10px;
+}
+
+.kid-coach-text {
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 1.2;
+  color: #20445e;
+}
+
 .hidden {
   display: none !important;
 }
@@ -378,5 +426,17 @@ body {
 
   .attract-inner h2 {
     font-size: 28px;
+  }
+
+  .kid-prompt-card {
+    padding: 18px 20px;
+  }
+
+  .kid-main-prompt {
+    font-size: clamp(22px, 6vw, 38px);
+  }
+
+  .kid-coach-text {
+    font-size: clamp(16px, 3vw, 24px);
   }
 }
