@@ -6,20 +6,20 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   />
-  <title>BxCM Wind Lab - Move the Weather</title>
+  <title>BxCM Little Learners: Grow the Garden</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <video id="video" playsinline muted></video>
-  <canvas id="playground"></canvas>
+  <canvas id="scene"></canvas>
 
   <div id="startupOverlay" class="overlay visible">
     <div class="overlay-card">
       <div class="brand-kicker">Bronx Children’s Museum</div>
-      <h1>BxCM Wind Lab</h1>
-      <p class="subtitle">Move the Weather</p>
+      <h1>BxCM Little Learners</h1>
+      <p class="subtitle">Grow the Garden</p>
       <p class="intro-copy">
-        Use your body to explore breeze, gusts, storms, and motion.
+        Move your body to plant seeds, grow flowers, wake the sun, and make the rain.
       </p>
 
       <div class="startup-controls">
@@ -36,23 +36,23 @@
           <label><input type="checkbox" id="hideUiToggle" checked /> Hide Operator UI</label>
         </div>
 
-        <button id="startExperienceBtn">Start Wind Lab</button>
+        <button id="startExperienceBtn">Start Garden</button>
       </div>
     </div>
   </div>
 
   <div id="attractOverlay" class="attract-overlay hidden">
     <div class="attract-inner">
-      <div class="attract-kicker">BxCM Wind Lab</div>
-      <h2>Step into the weather.</h2>
-      <p>Wave your arms to make breeze, wind, and storms.</p>
+      <div class="attract-kicker">BxCM Little Learners</div>
+      <h2>Step into the garden.</h2>
+      <p>Crouch to plant. Reach up to grow. Sway to make rain.</p>
     </div>
   </div>
 
   <div id="ui">
     <div class="panel">
-      <div class="panel-brand">BxCM Wind Lab</div>
-      <h1>Move the Weather</h1>
+      <div class="panel-brand">BxCM Little Learners</div>
+      <h1>Grow the Garden</h1>
 
       <div class="status-wrap">
         <div class="status-dot" id="statusDot"></div>
@@ -60,45 +60,25 @@
       </div>
 
       <div class="row">
-        <label for="themeSelect">Theme</label>
-        <select id="themeSelect">
-          <option value="leaves">Bronx Breeze</option>
-          <option value="fireflies">Night Glow</option>
-          <option value="dust">Ballfield Wind</option>
-          <option value="confetti">Celebration Sky</option>
+        <label for="cameraSelectInline">Camera</label>
+        <select id="cameraSelectInline"></select>
+      </div>
+
+      <div class="row">
+        <label for="gardenThemeSelect">Garden Theme</label>
+        <select id="gardenThemeSelect">
+          <option value="spring">Spring Garden</option>
+          <option value="bronx">Bronx Colors</option>
+          <option value="pollinator">Pollinator Garden</option>
         </select>
       </div>
 
       <div class="row">
-        <label for="modeSelect">Lesson Mode</label>
-        <select id="modeSelect">
+        <label for="difficultySelect">Activity</label>
+        <select id="difficultySelect">
+          <option value="guided">Guided</option>
           <option value="freeplay">Free Play</option>
-          <option value="weather">Move the Weather</option>
-          <option value="teamwork">Team Challenge</option>
         </select>
-      </div>
-
-      <div class="row">
-        <label for="particleCount">Particles</label>
-        <input type="range" id="particleCount" min="120" max="1400" value="550" step="50" />
-        <span id="particleCountValue">550</span>
-      </div>
-
-      <div class="row">
-        <label for="windStrength">Wind</label>
-        <input type="range" id="windStrength" min="0.5" max="6" value="2.4" step="0.1" />
-        <span id="windStrengthValue">2.4</span>
-      </div>
-
-      <div class="row">
-        <label for="burstSensitivity">Burst</label>
-        <input type="range" id="burstSensitivity" min="8" max="45" value="20" step="1" />
-        <span id="burstSensitivityValue">20</span>
-      </div>
-
-      <div class="row row-check">
-        <label for="trailsToggle">Trails</label>
-        <input type="checkbox" id="trailsToggle" checked />
       </div>
 
       <div class="row row-check">
@@ -118,17 +98,17 @@
 
       <div class="row buttons">
         <button id="nextPromptBtn">Next Prompt</button>
-        <button id="resetBtn">Reset</button>
+        <button id="resetBtn">Reset Garden</button>
       </div>
 
       <div class="prompt-box">
         <div class="prompt-label">Teaching Prompt</div>
-        <div class="prompt-text" id="promptText">Can you make a tiny breeze with your arms?</div>
+        <div class="prompt-text" id="promptText">Can you crouch down and plant a seed?</div>
       </div>
 
       <div class="instructions">
-        <p><strong>Explore:</strong> breeze, gust, storm, swirl</p>
-        <p><strong>Learn:</strong> force, speed, direction, teamwork</p>
+        <p><strong>Movements:</strong> crouch, stand tall, reach up, sway, freeze</p>
+        <p><strong>Learning:</strong> plant life cycle, weather, body control, cause and effect</p>
       </div>
     </div>
   </div>
