@@ -6,12 +6,43 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   />
-  <title>Wind & Motion Playground - Body Tracking</title>
+  <title>Wind & Motion Playground - Installation Build</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <video id="video" playsinline muted></video>
   <canvas id="playground"></canvas>
+
+  <div id="startupOverlay" class="overlay visible">
+    <div class="overlay-card">
+      <h1>Wind & Motion Playground</h1>
+      <p class="subtitle">Move your body to shape wind, motion, and particles.</p>
+
+      <div class="startup-controls">
+        <div class="startup-row">
+          <label for="cameraSelect">Camera</label>
+          <select id="cameraSelect">
+            <option value="">Loading cameras...</option>
+          </select>
+        </div>
+
+        <div class="startup-row checks">
+          <label><input type="checkbox" id="installModeToggle" checked /> Installation Mode</label>
+          <label><input type="checkbox" id="autoFullscreenToggle" checked /> Auto Fullscreen</label>
+          <label><input type="checkbox" id="hideUiToggle" checked /> Hide Operator UI</label>
+        </div>
+
+        <button id="startExperienceBtn">Start Experience</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="attractOverlay" class="attract-overlay hidden">
+    <div class="attract-inner">
+      <h2>Step into the wind.</h2>
+      <p>Wave your arms to move the particles.</p>
+    </div>
+  </div>
 
   <div id="ui">
     <div class="panel">
@@ -19,7 +50,7 @@
 
       <div class="status-wrap">
         <div class="status-dot" id="statusDot"></div>
-        <div class="status-text" id="statusText">Starting camera...</div>
+        <div class="status-text" id="statusText">Waiting to start...</div>
       </div>
 
       <div class="row">
@@ -29,6 +60,15 @@
           <option value="fireflies">Fireflies</option>
           <option value="dust">Baseball Dust</option>
           <option value="confetti">Confetti</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="modeSelect">Learning</label>
+        <select id="modeSelect">
+          <option value="freeplay">Free Play</option>
+          <option value="weather">Move the Weather</option>
+          <option value="teamwork">Teamwork Challenges</option>
         </select>
       </div>
 
@@ -65,21 +105,28 @@
         <input type="checkbox" id="mirrorToggle" checked />
       </div>
 
+      <div class="row row-check">
+        <label for="uiVisibleToggle">Show UI</label>
+        <input type="checkbox" id="uiVisibleToggle" checked />
+      </div>
+
       <div class="row buttons">
+        <button id="nextPromptBtn">Next Prompt</button>
         <button id="resetBtn">Reset</button>
-        <button id="fullscreenBtn">Fullscreen</button>
+      </div>
+
+      <div class="prompt-box">
+        <div class="prompt-label">Class Prompt</div>
+        <div class="prompt-text" id="promptText">Move your arms slowly and see what changes.</div>
       </div>
 
       <div class="instructions">
-        <p><strong>How to play</strong></p>
-        <p>Stand back so your upper body is visible.</p>
-        <p>Wave arms to push particles.</p>
-        <p>Fast sweeps create stronger bursts.</p>
+        <p><strong>Body play:</strong> wave, sweep, reach, swirl.</p>
+        <p><strong>Learning:</strong> force, speed, direction, teamwork.</p>
       </div>
     </div>
   </div>
 
-  <!-- MediaPipe -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
