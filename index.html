@@ -2,62 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wind & Motion Playground</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>Wind & Motion Playground - Body Tracking</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <video id="video" playsinline muted></video>
+  <canvas id="playground"></canvas>
+
   <div id="ui">
     <div class="panel">
       <h1>Wind & Motion Playground</h1>
+
+      <div class="status-wrap">
+        <div class="status-dot" id="statusDot"></div>
+        <div class="status-text" id="statusText">Starting camera...</div>
+      </div>
 
       <div class="row">
         <label for="themeSelect">Theme</label>
         <select id="themeSelect">
           <option value="leaves">Leaves</option>
-          <option value="confetti">Confetti</option>
           <option value="fireflies">Fireflies</option>
           <option value="dust">Baseball Dust</option>
+          <option value="confetti">Confetti</option>
         </select>
       </div>
 
       <div class="row">
         <label for="particleCount">Particles</label>
-        <input type="range" id="particleCount" min="100" max="1200" value="450" step="50" />
-        <span id="particleCountValue">450</span>
+        <input type="range" id="particleCount" min="120" max="1400" value="550" step="50" />
+        <span id="particleCountValue">550</span>
       </div>
 
       <div class="row">
-        <label for="windStrength">Wind Strength</label>
-        <input type="range" id="windStrength" min="0.2" max="4" value="1.5" step="0.1" />
-        <span id="windStrengthValue">1.5</span>
+        <label for="windStrength">Wind</label>
+        <input type="range" id="windStrength" min="0.5" max="6" value="2.4" step="0.1" />
+        <span id="windStrengthValue">2.4</span>
       </div>
 
       <div class="row">
-        <label for="trailToggle">Trails</label>
-        <input type="checkbox" id="trailToggle" checked />
+        <label for="burstSensitivity">Burst</label>
+        <input type="range" id="burstSensitivity" min="8" max="45" value="20" step="1" />
+        <span id="burstSensitivityValue">20</span>
       </div>
 
-      <div class="row">
-        <label for="autoDriftToggle">Auto Drift</label>
-        <input type="checkbox" id="autoDriftToggle" checked />
+      <div class="row row-check">
+        <label for="trailsToggle">Trails</label>
+        <input type="checkbox" id="trailsToggle" checked />
       </div>
 
-      <div class="row">
-        <button id="burstBtn">Burst Pulse</button>
+      <div class="row row-check">
+        <label for="debugToggle">Debug Skeleton</label>
+        <input type="checkbox" id="debugToggle" />
+      </div>
+
+      <div class="row row-check">
+        <label for="mirrorToggle">Mirror Camera</label>
+        <input type="checkbox" id="mirrorToggle" checked />
+      </div>
+
+      <div class="row buttons">
         <button id="resetBtn">Reset</button>
+        <button id="fullscreenBtn">Fullscreen</button>
       </div>
 
       <div class="instructions">
-        <p><strong>Controls:</strong></p>
-        <p>Move mouse = wind</p>
-        <p>Click = pulse burst</p>
-        <p>Theme menu = different moods</p>
+        <p><strong>How to play</strong></p>
+        <p>Stand back so your upper body is visible.</p>
+        <p>Wave arms to push particles.</p>
+        <p>Fast sweeps create stronger bursts.</p>
       </div>
     </div>
   </div>
 
-  <canvas id="playground"></canvas>
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 
   <script src="app.js"></script>
 </body>
