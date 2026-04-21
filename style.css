@@ -1,3 +1,20 @@
+:root {
+  --bx-yellow: #f4c400;
+  --bx-orange: #f58220;
+  --bx-cyan: #18a8e0;
+  --bx-magenta: #b1268f;
+  --bx-green: #46a037;
+
+  --sky-top: #dff5ff;
+  --sky-bottom: #f9fdff;
+  --ground-top: #8fd27d;
+  --ground-bottom: #46a037;
+  --panel-bg: rgba(8, 16, 24, 0.82);
+  --panel-border: rgba(255,255,255,0.10);
+  --text-main: #f7fbff;
+  --text-soft: rgba(255,255,255,0.84);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -7,8 +24,8 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #071018;
   font-family: Arial, Helvetica, sans-serif;
+  background: #e9f7ff;
 }
 
 body {
@@ -25,17 +42,12 @@ body {
   pointer-events: none;
 }
 
-#playground {
+#scene {
   position: absolute;
   inset: 0;
   width: 100vw;
   height: 100vh;
   display: block;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.03), transparent 20%),
-    radial-gradient(circle at 80% 30%, rgba(255,255,255,0.025), transparent 25%),
-    radial-gradient(circle at 60% 80%, rgba(255,255,255,0.02), transparent 30%),
-    linear-gradient(180deg, #122033 0%, #081521 55%, #040a10 100%);
 }
 
 .overlay,
@@ -54,30 +66,30 @@ body {
 }
 
 .overlay {
-  background: rgba(4, 9, 14, 0.84);
+  background: rgba(8, 18, 28, 0.72);
   backdrop-filter: blur(10px);
 }
 
 .overlay-card {
-  width: min(680px, 92vw);
+  width: min(700px, 92vw);
   padding: 30px;
   border-radius: 26px;
-  background: rgba(8, 17, 26, 0.94);
+  background: rgba(10, 18, 28, 0.94);
   border: 1px solid rgba(255,255,255,0.08);
-  color: #f5fbff;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  color: var(--text-main);
   text-align: center;
+  box-shadow: 0 20px 70px rgba(0,0,0,0.35);
 }
 
 .brand-kicker,
 .attract-kicker,
 .panel-brand {
   display: inline-block;
+  margin-bottom: 10px;
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #8fd4ff;
-  margin-bottom: 10px;
+  color: var(--bx-cyan);
 }
 
 .overlay-card h1 {
@@ -87,16 +99,16 @@ body {
 }
 
 .subtitle {
-  margin: 0 0 8px;
-  font-size: 20px;
+  margin: 0 0 10px;
+  font-size: 22px;
   font-weight: bold;
-  color: #d7f0ff;
+  color: var(--bx-yellow);
 }
 
 .intro-copy {
   margin: 0 0 22px;
   font-size: 15px;
-  color: rgba(255,255,255,0.82);
+  color: rgba(255,255,255,0.84);
 }
 
 .startup-controls {
@@ -112,7 +124,7 @@ body {
 
 .startup-row label {
   font-size: 14px;
-  color: rgba(255,255,255,0.88);
+  color: rgba(255,255,255,0.9);
 }
 
 .startup-row select,
@@ -125,13 +137,13 @@ body {
 }
 
 .startup-row select {
-  background: #f2f5f8;
+  background: #f5f8fb;
   color: #111;
 }
 
 #startExperienceBtn {
-  background: linear-gradient(90deg, #6bccef 0%, #92e39b 100%);
-  color: #072038;
+  background: linear-gradient(90deg, var(--bx-yellow) 0%, var(--bx-orange) 28%, var(--bx-cyan) 58%, var(--bx-magenta) 78%, var(--bx-green) 100%);
+  color: #082033;
   font-weight: bold;
   cursor: pointer;
 }
@@ -150,27 +162,29 @@ body {
 
 .attract-overlay {
   pointer-events: none;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.28));
+  background: radial-gradient(circle at center, rgba(255,255,255,0.18), rgba(255,255,255,0.04), rgba(0,0,0,0));
 }
 
 .attract-inner {
   text-align: center;
-  color: rgba(255,255,255,0.94);
-  padding: 28px 34px;
+  color: #123;
+  padding: 22px 28px;
   border-radius: 24px;
-  background: rgba(6, 13, 20, 0.42);
+  background: rgba(255,255,255,0.55);
   backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
 }
 
 .attract-inner h2 {
   margin: 0 0 10px;
   font-size: 34px;
+  color: #0f2940;
 }
 
 .attract-inner p {
   margin: 0;
   font-size: 18px;
-  color: rgba(255,255,255,0.82);
+  color: #294055;
 }
 
 .hidden {
@@ -186,13 +200,13 @@ body {
 }
 
 .panel {
-  width: 350px;
+  width: 360px;
   padding: 16px;
   border-radius: 18px;
-  color: #f6fbff;
-  background: rgba(7, 15, 22, 0.78);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.35);
+  color: var(--text-main);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.25);
   backdrop-filter: blur(12px);
   pointer-events: auto;
 }
@@ -210,33 +224,33 @@ body {
   margin-bottom: 14px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.06);
 }
 
 .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #ffcc66;
+  background: var(--bx-orange);
   flex: 0 0 auto;
 }
 
 .status-dot.live {
-  background: #5ce089;
+  background: var(--bx-green);
 }
 
 .status-dot.error {
-  background: #ff6d6d;
+  background: #ff5f5f;
 }
 
 .status-text {
   font-size: 12px;
-  color: rgba(255,255,255,0.88);
+  color: var(--text-soft);
 }
 
 .row {
   display: grid;
-  grid-template-columns: 94px 1fr 52px;
+  grid-template-columns: 96px 1fr;
   gap: 10px;
   align-items: center;
   margin-bottom: 12px;
@@ -244,11 +258,7 @@ body {
 
 .row label {
   font-size: 13px;
-  color: rgba(255,255,255,0.88);
-}
-
-.row input[type="range"] {
-  width: 100%;
+  color: rgba(255,255,255,0.92);
 }
 
 .row select,
@@ -266,7 +276,7 @@ body {
 }
 
 .row button {
-  background: #d8ecff;
+  background: #dff4ff;
   color: #072038;
   font-weight: bold;
   cursor: pointer;
@@ -284,29 +294,28 @@ body {
 
 .buttons {
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
 }
 
 .prompt-box {
   margin-top: 10px;
   padding: 12px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
 .prompt-label {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.65);
+  color: rgba(255,255,255,0.68);
   margin-bottom: 6px;
 }
 
 .prompt-text {
   font-size: 14px;
   line-height: 1.45;
-  color: rgba(255,255,255,0.94);
+  color: rgba(255,255,255,0.98);
 }
 
 .instructions {
@@ -319,21 +328,21 @@ body {
   margin: 4px 0;
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(255,255,255,0.82);
+  color: rgba(255,255,255,0.84);
 }
 
 @media (max-width: 800px) {
   .panel {
-    width: 292px;
+    width: 295px;
     padding: 14px;
   }
 
   .row {
-    grid-template-columns: 82px 1fr 46px;
+    grid-template-columns: 84px 1fr;
   }
 
   .row-check {
-    grid-template-columns: 130px 1fr;
+    grid-template-columns: 128px 1fr;
   }
 
   .overlay-card h1 {
