@@ -2,10 +2,20 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("playground");
 const ctx = canvas.getContext("2d");
 
+const startupOverlay = document.getElementById("startupOverlay");
+const attractOverlay = document.getElementById("attractOverlay");
+const cameraSelect = document.getElementById("cameraSelect");
+const startExperienceBtn = document.getElementById("startExperienceBtn");
+const installModeToggle = document.getElementById("installModeToggle");
+const autoFullscreenToggle = document.getElementById("autoFullscreenToggle");
+const hideUiToggle = document.getElementById("hideUiToggle");
+
+const ui = document.getElementById("ui");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 
 const themeSelect = document.getElementById("themeSelect");
+const modeSelect = document.getElementById("modeSelect");
 const particleCountInput = document.getElementById("particleCount");
 const particleCountValue = document.getElementById("particleCountValue");
 const windStrengthInput = document.getElementById("windStrength");
@@ -15,8 +25,10 @@ const burstSensitivityValue = document.getElementById("burstSensitivityValue");
 const trailsToggle = document.getElementById("trailsToggle");
 const debugToggle = document.getElementById("debugToggle");
 const mirrorToggle = document.getElementById("mirrorToggle");
+const uiVisibleToggle = document.getElementById("uiVisibleToggle");
+const nextPromptBtn = document.getElementById("nextPromptBtn");
 const resetBtn = document.getElementById("resetBtn");
-const fullscreenBtn = document.getElementById("fullscreenBtn");
+const promptText = document.getElementById("promptText");
 
 let width = window.innerWidth;
 let height = window.innerHeight;
@@ -24,13 +36,18 @@ let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
 let particles = [];
 let pulses = [];
-let lastTime = 0;
-let poseReady = false;
 let lastBurstLeft = 0;
 let lastBurstRight = 0;
+let lastSeenBodyTime = 0;
+let poseInstance = null;
+let cameraController = null;
+let currentStream = null;
+let currentDeviceId = "";
+let promptIndex = 0;
 
 const config = {
   theme: "leaves",
+  learningMode: "freeplay",
   particleCount: parseInt(particleCountInput.value, 10),
   windStrength: parseFloat(windStrengthInput.value),
   burstSensitivity: parseFloat(burstSensitivityInput.value),
@@ -43,22 +60,89 @@ const config = {
   handRadius: 200,
   pulseRadius: 280,
   pulseForce: 6.2,
-  burstCooldownMs: 260
+  burstCooldownMs: 260,
+  installationMode: true,
+  autoFullscreen: true,
+  hideUiInInstallation: true,
+  attractModeDelayMs: 5000
+};
+
+const prompts = {
+  freeplay: [
+    "Move your arms slowly and see what changes.",
+    "Try making tiny breezes and giant gusts.",
+    "Can you move the particles across the whole space?",
+    "What happens when you use one hand versus two?"
+  ],
+  weather: [
+    "Can you make a gentle breeze?",
+    "Can you make a strong storm?",
+    "What changes when you move faster?",
+    "Which way are the particles traveling?",
+    "Can you swirl the wind in a circle?"
+  ],
+  teamwork: [
+    "Can two people work together to move everything to one side?",
+    "Can one person make a breeze while another makes a storm?",
+    "Can your team create a spinning swirl?",
+    "Can you take turns making the room calm and wild?"
+  ]
 };
 
 const poseState = {
-  leftWrist: null,
-  rightWrist: null,
+  leftShoulder: null,
+  rightShoulder: null,
   leftElbow: null,
   rightElbow: null,
-  leftShoulder: null,
-  rightShoulder: null
+  leftWrist: null,
+  rightWrist: null
 };
+
+class HandEmitter {
+  constructor(name) {
+    this.name = name;
+    this.x = width * 0.5;
+    this.y = height * 0.5;
+    this.px = this.x;
+    this.py = this.y;
+    this.vx = 0;
+    this.vy = 0;
+    this.speed = 0;
+    this.visible = false;
+    this.score = 0;
+  }
+
+  updateFromLandmark(landmark, visibility = 0) {
+    if (!landmark || visibility < 0.3) {
+      this.visible = false;
+      this.speed *= 0.75;
+      return;
+    }
+
+    this.visible = true;
+    this.px = this.x;
+    this.py = this.y;
+
+    let mappedX = landmark.x * width;
+    let mappedY = landmark.y * height;
+
+    if (config.mirror) mappedX = width - mappedX;
+
+    this.x = mappedX;
+    this.y = mappedY;
+    this.vx = this.x - this.px;
+    this.vy = this.y - this.py;
+    this.speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    this.score = visibility;
+  }
+}
+
+const leftHand = new HandEmitter("left");
+const rightHand = new HandEmitter("right");
 
 function setStatus(text, mode = "normal") {
   statusText.textContent = text;
   statusDot.classList.remove("live", "error");
-
   if (mode === "live") statusDot.classList.add("live");
   if (mode === "error") statusDot.classList.add("error");
 }
@@ -139,52 +223,6 @@ function getThemeSettings(theme) {
   }
 }
 
-class HandEmitter {
-  constructor(name) {
-    this.name = name;
-    this.x = width * 0.5;
-    this.y = height * 0.5;
-    this.px = this.x;
-    this.py = this.y;
-    this.vx = 0;
-    this.vy = 0;
-    this.speed = 0;
-    this.visible = false;
-    this.score = 0;
-  }
-
-  updateFromLandmark(landmark, visibility = 0) {
-    if (!landmark || visibility < 0.3) {
-      this.visible = false;
-      this.speed *= 0.75;
-      return;
-    }
-
-    this.visible = true;
-
-    this.px = this.x;
-    this.py = this.y;
-
-    let mappedX = landmark.x * width;
-    let mappedY = landmark.y * height;
-
-    if (config.mirror) {
-      mappedX = width - mappedX;
-    }
-
-    this.x = mappedX;
-    this.y = mappedY;
-
-    this.vx = this.x - this.px;
-    this.vy = this.y - this.py;
-    this.speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    this.score = visibility;
-  }
-}
-
-const leftHand = new HandEmitter("left");
-const rightHand = new HandEmitter("right");
-
 class Particle {
   constructor() {
     this.reset(true);
@@ -192,13 +230,11 @@ class Particle {
 
   reset(initial = false) {
     const theme = getThemeSettings(config.theme);
-
     this.x = initial ? rand(0, width) : rand(-50, width + 50);
     this.y = initial ? rand(0, height) : rand(-50, height + 50);
     this.vx = rand(-0.3, 0.3);
     this.vy = rand(-0.3, 0.3);
     this.size = rand(theme.sizeMin, theme.sizeMax);
-    this.baseSize = this.size;
     this.color = pick(theme.colors);
     this.alpha = rand(theme.alphaMin, theme.alphaMax);
     this.rotation = rand(0, Math.PI * 2);
@@ -222,7 +258,6 @@ class Particle {
 
       this.vx += hand.vx * 0.026 * power;
       this.vy += hand.vy * 0.026 * power;
-
       this.vx += (dx / dist) * 0.03 * power;
       this.vy += (dy / dist) * 0.03 * power;
     }
@@ -250,10 +285,8 @@ class Particle {
 
     this.vx += config.ambientWindX * this.speedFactor * 0.02;
     this.vy += config.ambientWindY * this.speedFactor * 0.02;
-
     this.vy += Math.sin(time * 0.001 + this.floatPhase) * 0.002 * this.speedFactor;
     this.vx += Math.cos(time * 0.0007 + this.floatPhase) * 0.0015 * this.speedFactor;
-
     this.vx *= config.friction;
     this.vy *= config.friction;
 
@@ -272,7 +305,6 @@ class Particle {
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotation);
     ctx.globalAlpha = this.alpha;
-
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.moveTo(0, -this.size);
@@ -280,14 +312,12 @@ class Particle {
     ctx.quadraticCurveTo(0, this.size * 0.55, -this.size * 0.45, this.size);
     ctx.quadraticCurveTo(-this.size * 0.9, -this.size * 0.3, 0, -this.size);
     ctx.fill();
-
     ctx.strokeStyle = "rgba(255,255,255,0.18)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, -this.size * 0.8);
     ctx.lineTo(0, this.size * 0.8);
     ctx.stroke();
-
     ctx.restore();
   }
 
@@ -304,23 +334,19 @@ class Particle {
   drawGlow() {
     ctx.save();
     ctx.globalAlpha = this.alpha;
-
     const glowRadius = this.size * 4;
     const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, glowRadius);
     grad.addColorStop(0, this.color);
     grad.addColorStop(0.28, this.color + "88");
     grad.addColorStop(1, "rgba(255,255,255,0)");
-
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(this.x, this.y, glowRadius, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.restore();
   }
 
@@ -359,7 +385,6 @@ class Pulse {
 
   draw() {
     if (this.life <= 0) return;
-
     ctx.save();
     ctx.globalAlpha = this.life * 0.34;
     ctx.strokeStyle = "rgba(255,255,255,0.88)";
@@ -399,7 +424,6 @@ function tryBurstFromHand(hand, side, now) {
       addPulse(hand.x, hand.y, clamp(hand.speed / 18, 1, 1.6));
       lastBurstLeft = now;
     }
-
     if (side === "right" && now - lastBurstRight > config.burstCooldownMs) {
       addPulse(hand.x, hand.y, clamp(hand.speed / 18, 1, 1.6));
       lastBurstRight = now;
@@ -427,24 +451,15 @@ function drawEmitterGlow(hand, color) {
 function drawBackgroundGlow() {
   const focusX = (leftHand.visible && rightHand.visible)
     ? (leftHand.x + rightHand.x) * 0.5
-    : leftHand.visible
-      ? leftHand.x
-      : rightHand.visible
-        ? rightHand.x
-        : width * 0.5;
+    : leftHand.visible ? leftHand.x : rightHand.visible ? rightHand.x : width * 0.5;
 
   const focusY = (leftHand.visible && rightHand.visible)
     ? (leftHand.y + rightHand.y) * 0.5
-    : leftHand.visible
-      ? leftHand.y
-      : rightHand.visible
-        ? rightHand.y
-        : height * 0.45;
+    : leftHand.visible ? leftHand.y : rightHand.visible ? rightHand.y : height * 0.45;
 
   const grad = ctx.createRadialGradient(focusX, focusY, 0, focusX, focusY, 320);
   grad.addColorStop(0, "rgba(255,255,255,0.05)");
   grad.addColorStop(1, "rgba(255,255,255,0)");
-
   ctx.save();
   ctx.fillStyle = grad;
   ctx.beginPath();
@@ -453,23 +468,39 @@ function drawBackgroundGlow() {
   ctx.restore();
 }
 
+function drawAttractMotion(time) {
+  const cx = width * 0.5 + Math.cos(time * 0.0006) * width * 0.18;
+  const cy = height * 0.5 + Math.sin(time * 0.0009) * height * 0.12;
+
+  addSoftForce(cx, cy, Math.cos(time * 0.005) * 2.5, Math.sin(time * 0.004) * 2.5);
+}
+
+function addSoftForce(x, y, vx, vy) {
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    const dx = p.x - x;
+    const dy = p.y - y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 220 && dist > 0.001) {
+      const falloff = 1 - dist / 220;
+      p.vx += vx * 0.01 * falloff;
+      p.vy += vy * 0.01 * falloff;
+    }
+  }
+}
+
 function drawDebugSkeleton() {
   if (!config.debug) return;
 
   const points = [
-    poseState.leftShoulder,
-    poseState.rightShoulder,
-    poseState.leftElbow,
-    poseState.rightElbow,
-    poseState.leftWrist,
-    poseState.rightWrist
+    poseState.leftShoulder, poseState.rightShoulder,
+    poseState.leftElbow, poseState.rightElbow,
+    poseState.leftWrist, poseState.rightWrist
   ].filter(Boolean);
 
   ctx.save();
-
   ctx.strokeStyle = "rgba(120, 220, 255, 0.9)";
   ctx.lineWidth = 3;
-
   drawSegment(poseState.leftShoulder, poseState.leftElbow);
   drawSegment(poseState.leftElbow, poseState.leftWrist);
   drawSegment(poseState.rightShoulder, poseState.rightElbow);
@@ -482,7 +513,6 @@ function drawDebugSkeleton() {
     ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
     ctx.fill();
   }
-
   ctx.restore();
 }
 
@@ -494,10 +524,40 @@ function drawSegment(a, b) {
   ctx.stroke();
 }
 
+function mapLandmark(landmark) {
+  if (!landmark) return null;
+  let x = landmark.x * width;
+  const y = landmark.y * height;
+  if (config.mirror) x = width - x;
+  return { x, y, visibility: landmark.visibility ?? 0 };
+}
+
+function onPoseResults(results) {
+  const lm = results.poseLandmarks;
+
+  if (!lm || !lm.length) {
+    leftHand.visible = false;
+    rightHand.visible = false;
+    setStatus("No body detected. Step into view.");
+    return;
+  }
+
+  lastSeenBodyTime = performance.now();
+  setStatus("Body tracking live", "live");
+
+  poseState.leftShoulder = mapLandmark(lm[11]);
+  poseState.rightShoulder = mapLandmark(lm[12]);
+  poseState.leftElbow = mapLandmark(lm[13]);
+  poseState.rightElbow = mapLandmark(lm[14]);
+  poseState.leftWrist = mapLandmark(lm[15]);
+  poseState.rightWrist = mapLandmark(lm[16]);
+
+  leftHand.updateFromLandmark(lm[15], lm[15]?.visibility ?? 0);
+  rightHand.updateFromLandmark(lm[16], lm[16]?.visibility ?? 0);
+}
+
 function animate(timestamp) {
-  const time = timestamp || 0;
   const now = performance.now();
-  lastTime = time;
 
   if (!config.trails) {
     ctx.clearRect(0, 0, width, height);
@@ -508,13 +568,26 @@ function animate(timestamp) {
 
   drawBackgroundGlow();
 
+  const bodyActiveRecently = now - lastSeenBodyTime < config.attractModeDelayMs;
+
+  if (!bodyActiveRecently && config.installationMode) {
+    drawAttractMotion(timestamp || 0);
+    attractOverlay.classList.add("visible");
+    attractOverlay.classList.remove("hidden");
+  } else {
+    attractOverlay.classList.remove("visible");
+    attractOverlay.classList.add("hidden");
+  }
+
   for (let i = 0; i < particles.length; i++) {
-    particles[i].update(time);
+    particles[i].update(timestamp || 0);
     particles[i].draw();
   }
 
-  tryBurstFromHand(leftHand, "left", now);
-  tryBurstFromHand(rightHand, "right", now);
+  if (bodyActiveRecently) {
+    tryBurstFromHand(leftHand, "left", now);
+    tryBurstFromHand(rightHand, "right", now);
+  }
 
   for (let i = pulses.length - 1; i >= 0; i--) {
     pulses[i].update();
@@ -529,99 +602,155 @@ function animate(timestamp) {
   requestAnimationFrame(animate);
 }
 
-function mapLandmark(landmark) {
-  if (!landmark) return null;
+async function loadCameraOptions() {
+  try {
+    const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    tempStream.getTracks().forEach(track => track.stop());
 
-  let x = landmark.x * width;
-  const y = landmark.y * height;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cams = devices.filter(d => d.kind === "videoinput");
 
-  if (config.mirror) x = width - x;
+    cameraSelect.innerHTML = "";
 
-  return { x, y, visibility: landmark.visibility ?? 0 };
+    if (!cams.length) {
+      cameraSelect.innerHTML = `<option value="">No cameras found</option>`;
+      return;
+    }
+
+    cams.forEach((cam, index) => {
+      const option = document.createElement("option");
+      option.value = cam.deviceId;
+      option.textContent = cam.label || `Camera ${index + 1}`;
+      cameraSelect.appendChild(option);
+    });
+
+    currentDeviceId = cameraSelect.value;
+  } catch (err) {
+    console.error(err);
+    cameraSelect.innerHTML = `<option value="">Camera access needed</option>`;
+  }
 }
 
-function onPoseResults(results) {
-  const lm = results.poseLandmarks;
+async function stopCurrentCamera() {
+  if (cameraController && typeof cameraController.stop === "function") {
+    try { cameraController.stop(); } catch (e) {}
+  }
+  cameraController = null;
 
-  if (!lm || !lm.length) {
-    poseReady = false;
-    setStatus("No body detected. Step back and face the camera.");
-    leftHand.visible = false;
-    rightHand.visible = false;
-    return;
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+    currentStream = null;
   }
 
-  poseReady = true;
-  setStatus("Body tracking live", "live");
-
-  const leftShoulder = mapLandmark(lm[11]);
-  const rightShoulder = mapLandmark(lm[12]);
-  const leftElbow = mapLandmark(lm[13]);
-  const rightElbow = mapLandmark(lm[14]);
-  const leftWrist = lm[15];
-  const rightWrist = lm[16];
-
-  poseState.leftShoulder = leftShoulder;
-  poseState.rightShoulder = rightShoulder;
-  poseState.leftElbow = mapLandmark(lm[13]);
-  poseState.rightElbow = mapLandmark(lm[14]);
-  poseState.leftWrist = mapLandmark(lm[15]);
-  poseState.rightWrist = mapLandmark(lm[16]);
-
-  leftHand.updateFromLandmark(leftWrist, leftWrist?.visibility ?? 0);
-  rightHand.updateFromLandmark(rightWrist, rightWrist?.visibility ?? 0);
+  video.srcObject = null;
 }
 
-async function startPose() {
+async function startPoseWithSelectedCamera(deviceId) {
   try {
-    setStatus("Requesting camera...");
+    await stopCurrentCamera();
+    setStatus("Starting selected camera...");
 
-    const stream = await navigator.mediaDevices.getUserMedia({
+    currentStream = await navigator.mediaDevices.getUserMedia({
       video: {
+        deviceId: deviceId ? { exact: deviceId } : undefined,
         width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: "user"
+        height: { ideal: 720 }
       },
       audio: false
     });
 
-    video.srcObject = stream;
+    video.srcObject = currentStream;
     await video.play();
 
-    const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-    });
+    if (!poseInstance) {
+      poseInstance = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+      });
 
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      smoothSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
+      poseInstance.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        smoothSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
 
-    pose.onResults(onPoseResults);
+      poseInstance.onResults(onPoseResults);
+    }
 
-    const camera = new Camera(video, {
+    cameraController = new Camera(video, {
       onFrame: async () => {
-        await pose.send({ image: video });
+        if (poseInstance) {
+          await poseInstance.send({ image: video });
+        }
       },
       width: 1280,
       height: 720
     });
 
-    camera.start();
+    cameraController.start();
     setStatus("Camera started. Looking for body...");
+    lastSeenBodyTime = 0;
   } catch (err) {
     console.error(err);
-    setStatus("Camera failed. Check browser permission and HTTPS/localhost.", "error");
+    setStatus("Camera failed. Check permissions and selected device.", "error");
   }
+}
+
+function updatePrompt() {
+  const list = prompts[config.learningMode] || prompts.freeplay;
+  promptText.textContent = list[promptIndex % list.length];
+}
+
+function nextPrompt() {
+  promptIndex += 1;
+  updatePrompt();
+}
+
+function applyInstallationSettings() {
+  config.installationMode = installModeToggle.checked;
+  config.autoFullscreen = autoFullscreenToggle.checked;
+  config.hideUiInInstallation = hideUiToggle.checked;
+
+  if (config.installationMode && config.hideUiInInstallation) {
+    ui.classList.add("hidden");
+  } else {
+    ui.classList.remove("hidden");
+  }
+}
+
+async function enterFullscreenMaybe() {
+  if (!config.autoFullscreen) return;
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen?.();
+    }
+  } catch (err) {
+    console.warn("Fullscreen was not entered automatically.", err);
+  }
+}
+
+async function startExperience() {
+  applyInstallationSettings();
+
+  currentDeviceId = cameraSelect.value;
+  await startPoseWithSelectedCamera(currentDeviceId);
+  await enterFullscreenMaybe();
+
+  startupOverlay.classList.remove("visible");
+  startupOverlay.classList.add("hidden");
 }
 
 themeSelect.addEventListener("change", () => {
   config.theme = themeSelect.value;
   resetScene();
+});
+
+modeSelect.addEventListener("change", () => {
+  config.learningMode = modeSelect.value;
+  promptIndex = 0;
+  updatePrompt();
 });
 
 particleCountInput.addEventListener("input", () => {
@@ -652,18 +781,24 @@ mirrorToggle.addEventListener("change", () => {
   config.mirror = mirrorToggle.checked;
 });
 
+uiVisibleToggle.addEventListener("change", () => {
+  if (uiVisibleToggle.checked) ui.classList.remove("hidden");
+  else ui.classList.add("hidden");
+});
+
+nextPromptBtn.addEventListener("click", nextPrompt);
+
 resetBtn.addEventListener("click", () => {
   resetScene();
 });
 
-fullscreenBtn.addEventListener("click", async () => {
-  const el = document.documentElement;
-  if (!document.fullscreenElement) {
-    await el.requestFullscreen?.();
-  } else {
-    await document.exitFullscreen?.();
-  }
+cameraSelect.addEventListener("change", async () => {
+  currentDeviceId = cameraSelect.value;
+  if (!startupOverlay.classList.contains("hidden")) return;
+  await startPoseWithSelectedCamera(currentDeviceId);
 });
+
+startExperienceBtn.addEventListener("click", startExperience);
 
 window.addEventListener("resize", () => {
   resizeCanvas();
@@ -672,5 +807,6 @@ window.addEventListener("resize", () => {
 
 resizeCanvas();
 buildParticles();
+updatePrompt();
 requestAnimationFrame(animate);
-startPose();
+loadCameraOptions();
