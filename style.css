@@ -35,7 +35,7 @@ body {
     radial-gradient(circle at 20% 20%, rgba(255,255,255,0.03), transparent 20%),
     radial-gradient(circle at 80% 30%, rgba(255,255,255,0.025), transparent 25%),
     radial-gradient(circle at 60% 80%, rgba(255,255,255,0.02), transparent 30%),
-    linear-gradient(180deg, #0f1a26 0%, #071018 58%, #040a0f 100%);
+    linear-gradient(180deg, #122033 0%, #081521 55%, #040a10 100%);
 }
 
 .overlay,
@@ -54,31 +54,49 @@ body {
 }
 
 .overlay {
-  background: rgba(3, 8, 12, 0.82);
+  background: rgba(4, 9, 14, 0.84);
   backdrop-filter: blur(10px);
 }
 
 .overlay-card {
-  width: min(640px, 92vw);
-  padding: 28px;
-  border-radius: 24px;
-  background: rgba(8, 16, 24, 0.92);
+  width: min(680px, 92vw);
+  padding: 30px;
+  border-radius: 26px;
+  background: rgba(8, 17, 26, 0.94);
   border: 1px solid rgba(255,255,255,0.08);
   color: #f5fbff;
   box-shadow: 0 18px 60px rgba(0,0,0,0.45);
   text-align: center;
 }
 
+.brand-kicker,
+.attract-kicker,
+.panel-brand {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8fd4ff;
+  margin-bottom: 10px;
+}
+
 .overlay-card h1 {
-  margin: 0 0 10px;
-  font-size: 34px;
-  line-height: 1.1;
+  margin: 0 0 8px;
+  font-size: 36px;
+  line-height: 1.05;
 }
 
 .subtitle {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #d7f0ff;
+}
+
+.intro-copy {
   margin: 0 0 22px;
-  font-size: 16px;
-  color: rgba(255,255,255,0.84);
+  font-size: 15px;
+  color: rgba(255,255,255,0.82);
 }
 
 .startup-controls {
@@ -112,7 +130,7 @@ body {
 }
 
 #startExperienceBtn {
-  background: #d8ecff;
+  background: linear-gradient(90deg, #6bccef 0%, #92e39b 100%);
   color: #072038;
   font-weight: bold;
   cursor: pointer;
@@ -132,15 +150,15 @@ body {
 
 .attract-overlay {
   pointer-events: none;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.32));
+  background: radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.28));
 }
 
 .attract-inner {
   text-align: center;
-  color: rgba(255,255,255,0.92);
+  color: rgba(255,255,255,0.94);
   padding: 28px 34px;
   border-radius: 24px;
-  background: rgba(5, 11, 16, 0.38);
+  background: rgba(6, 13, 20, 0.42);
   backdrop-filter: blur(10px);
 }
 
@@ -168,11 +186,11 @@ body {
 }
 
 .panel {
-  width: 340px;
+  width: 350px;
   padding: 16px;
   border-radius: 18px;
   color: #f6fbff;
-  background: rgba(7, 15, 22, 0.74);
+  background: rgba(7, 15, 22, 0.78);
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 14px 40px rgba(0,0,0,0.35);
   backdrop-filter: blur(12px);
@@ -181,7 +199,7 @@ body {
 
 .panel h1 {
   margin: 0 0 14px;
-  font-size: 21px;
+  font-size: 22px;
   line-height: 1.2;
 }
 
@@ -218,7 +236,7 @@ body {
 
 .row {
   display: grid;
-  grid-template-columns: 90px 1fr 52px;
+  grid-template-columns: 94px 1fr 52px;
   gap: 10px;
   align-items: center;
   margin-bottom: 12px;
@@ -306,7 +324,7 @@ body {
 
 @media (max-width: 800px) {
   .panel {
-    width: 290px;
+    width: 292px;
     padding: 14px;
   }
 
@@ -319,7 +337,7 @@ body {
   }
 
   .overlay-card h1 {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .attract-inner h2 {
